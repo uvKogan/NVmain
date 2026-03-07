@@ -135,7 +135,7 @@ void TranslationMethod::GetCount( uint64_t *rows, uint64_t *cols, uint64_t *bank
 void TranslationMethod::SetAddressMappingScheme( std::string scheme )
 {
     /* maximize row buffer hit */
-    char addrMappingScheme[16]; 
+    char addrMappingScheme[64]; 
     char *addrParser, *savePtr;
 
     strcpy( addrMappingScheme, (char*)scheme.c_str( ) );

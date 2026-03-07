@@ -175,7 +175,13 @@ bool NVMainTraceReader::GetNextAccess( TraceLine *nextAccess )
                     end = 8*byte + 8;
                     start = 8*byte;
 
-                    fmat << std::hex << field.substr( start, end - start );
+                    // fmat << std::hex << field.substr( start, end - start );
+                    if (start < field.length() && (end - start) <= (field.length() - start)) {
+                        fmat << std::hex << field.substr(start, end - start);
+                    } else {
+                        // Fallback or skip to prevent crash
+                        continue; 
+                    }
                     fmat >> rawData[byte];
                     rawData[byte] = htonl( rawData[byte] );
                 }
@@ -214,7 +220,13 @@ bool NVMainTraceReader::GetNextAccess( TraceLine *nextAccess )
                         end = 8*byte + 8;
                         start = 8*byte;
 
-                        fmat << std::hex << field.substr( start, end - start );
+                        // fmat << std::hex << field.substr( start, end - start );
+                        if (start < field.length() && (end - start) <= (field.length() - start)) {
+                            fmat << std::hex << field.substr(start, end - start);
+                        } else {
+                            // Fallback or skip to prevent crash
+                            continue; 
+                        }
                         fmat >> rawData[byte];
                         rawData[byte] = htonl( rawData[byte] );
                     }
