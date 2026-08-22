@@ -335,13 +335,22 @@ bool SubArray::Activate( NVMainRequest *request )
         /* DRAM Model */
         ncycle_t tRC = p->tRAS + p->tRP;
 
-        subArrayEnergy += ( ( p->EIDD0 * (double)tRC ) 
+        /* Cycle-7 finding #9-adjacent: this formula assumes EIDD0 (one-bank
+         * activate-precharge current) exceeds the tRAS/tRP-weighted background
+         * current -- true for the old placeholder IDD values but false for
+         * real hynix/Micron DDR5-4800 datasheets (e.g. hynix EIDD0=60.2 <
+         * EIDD3N=117.6), which yields a negative incremental activate energy.
+         * A real operation's energy above background cannot be negative, so
+         * clamp the per-activate delta at 0 rather than let a background-
+         * current mismatch produce phantom negative energy. */
+        double actDelta = ( ( p->EIDD0 * (double)tRC )
                     - ( ( p->EIDD3N * (double)(p->tRAS) )
                     +  ( p->EIDD2N * (double)(p->tRP) ) ) ) / (double)(p->BANKS);
+        if( actDelta < 0.0 ) actDelta = 0.0;
 
-        activeEnergy += ( ( p->EIDD0 * (double)tRC ) 
-                      - ( ( p->EIDD3N * (double)(p->tRAS) )
-                      +  ( p->EIDD2N * (double)(p->tRP) ) ) ) / (double)(p->BANKS);
+        subArrayEnergy += actDelta;
+
+        activeEnergy += actDelta;
     }
     else
     {
