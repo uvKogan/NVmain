@@ -35,8 +35,16 @@
 
 /* Add your hook's include files here.*/
 #include "Utils/Visualizer/Visualizer.h"
-#include "Utils/PostTrace/PostTrace.h"
-#include "Utils/CoinMigrator/CoinMigrator.h"
+/* MBMM: Utils/PostTrace/PostTrace.h and Utils/CoinMigrator/CoinMigrator.h are
+ * referenced here but do not exist anywhere in this checkout's source tree (not
+ * tracked in git, confirmed via `git ls-tree -r HEAD`) - only stale, orphaned .o/.fo
+ * build artifacts from a prior, differently-configured build remained, masking this
+ * gap until a full rebuild was attempted. Neither hook is used anywhere in this
+ * project (no --hook PostTrace/CoinMigrator invocation exists), so both are stubbed
+ * out below rather than reconstructed - unrelated to the power-down restoration this
+ * rebuild was for; do not re-add without first restoring the missing source files. */
+//#include "Utils/PostTrace/PostTrace.h"
+//#include "Utils/CoinMigrator/CoinMigrator.h"
 
 
 using namespace NVM;
@@ -47,8 +55,8 @@ NVMObject *HookFactory::CreateHook( std::string hookName )
     NVMObject *hook = NULL;
 
     if( hookName == "Visualizer" ) hook = new Visualizer( );
-    else if( hookName == "PostTrace" ) hook = new PostTrace( );
-    else if( hookName == "CoinMigrator" ) hook = new CoinMigrator( );
+    //else if( hookName == "PostTrace" ) hook = new PostTrace( );
+    //else if( hookName == "CoinMigrator" ) hook = new CoinMigrator( );
     //else if( hookName == "MyHook" ) hook = new MyHook( );
 
     if( hook != NULL )

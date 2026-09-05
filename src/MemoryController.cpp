@@ -1647,7 +1647,17 @@ bool MemoryController::IssueMemoryCommands( NVMainRequest *req )
 
 void MemoryController::CycleCommandQueues( )
 {
-    //HandleLowPower( );
+    /* Power-down restoration (MBMM): this call was dead in this build - every
+     * technology's power-down counters (fastExitActiveCycles/fastExitPrechargeCycles/
+     * slowExitCycles in StandardRank.cpp) were zero everywhere. Restoring it activates
+     * power-down for EVERY MemoryController-derived controller (DDR5, PCM, ReRAM
+     * alike) via the shared greedy policy in HandleLowPower() below - not ReRAM-only.
+     * DDR5's config already has real, datasheet-derived power-down currents
+     * (EnergyModel current branch); ReRAM's and PCM's Epda/Epdpf/Epdps are set to an
+     * explicit honest placeholder (= their own Eprestdby/Eactstdby) in
+     * 3_gen_nvmain_config.py and the PCM config respectively, pending real
+     * characterization - see documents/MBMM_Book_Typst/Project_Book.typ Appendix A. */
+    HandleLowPower( );
 
     /* If a refresh event schedule for this cycle was handled, we are done. */
     if( handledRefresh == GetEventQueue()->GetCurrentCycle() )
