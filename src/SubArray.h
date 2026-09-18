@@ -183,6 +183,10 @@ class SubArray : public NVMObject
     double refreshEnergy;
 
     uint64_t worstCaseEndurance, averageEndurance;
+    /* Measured per-location write skew (see CalculateStats). */
+    uint64_t wearLocations, wearTotalWrites, wearMaxWrites;
+    double wearMeanWrites, wearHotSpotFactor;
+    std::string wearHisto, wearTopLocations;
 
     ncounter_t reads, writes, activates, precharges, refreshes;
     ncounter_t idleTimer;

@@ -45,6 +45,9 @@
 #include <cassert>
 #include <iostream>
 #include <limits>
+#include <algorithm>
+#include <vector>
+#include <sstream>
 
 /*
  * Using -O3 in gcc causes the popcount methods to return incorrect values.
@@ -249,6 +252,13 @@ void SubArray::RegisterStats( )
     {
         AddStat(worstCaseEndurance);
         AddStat(averageEndurance);
+        AddStat(wearLocations);
+        AddStat(wearTotalWrites);
+        AddStat(wearMaxWrites);
+        AddStat(wearMeanWrites);
+        AddStat(wearHotSpotFactor);
+        AddStat(wearHisto);
+        AddStat(wearTopLocations);
     }
 
     AddStat(actWaits);
@@ -1388,6 +1398,25 @@ ncycle_t SubArray::UpdateEndurance( NVMainRequest *request )
 
         NVMDataBlock oldData;
 
+        if( !endrModel->NeedsOldData( ) )
+        {
+            /*
+             *  RowModel/WordModel never look at oldData, so skip the
+             *  SimInterface data shadow (a full NVMDataBlock per unique
+             *  cacheline) entirely.
+             */
+            ncycles_t extraLatency = endrModel->Write( request, oldData );
+            if( extraLatency < 0 )
+            {
+                extraLatency = -extraLatency;
+                extraLatency--;
+                std::cout << "WARNING: Write to 0x" << std::hex
+                    << request->address.GetPhysicalAddress( )
+                    << std::dec << " resulted in a hard error! " << std::endl;
+            }
+            return static_cast<ncycle_t>(extraLatency);
+        }
+
         if( conf->GetSimInterface( ) != NULL )
         {
             /* If the old data is not there, we will assume the data is 0.*/
@@ -1479,6 +1508,60 @@ void SubArray::CalculateStats( )
 {
     worstCaseEndurance = endrModel->GetWorstLife( );
     averageEndurance = endrModel->GetAverageLife( );
+
+    /*
+     *  Measured per-location write skew. Keys are whatever the configured
+     *  EnduranceModel uses (row for RowModel, row*COLS+col for WordModel).
+     *  wearHotSpotFactor = max writes to any one location / mean writes per
+     *  touched location. This is the number that replaces the "ideal uniform
+     *  wear leveling" assumption.
+     */
+    {
+        const std::map<uint64_t, uint64_t>& wc = endrModel->GetWriteCounts( );
+        std::map<uint64_t, uint64_t> histo;
+        std::vector< std::pair<uint64_t, uint64_t> > byCount;
+
+        wearLocations = static_cast<uint64_t>( wc.size( ) );
+        wearTotalWrites = 0;
+        wearMaxWrites = 0;
+
+        for( std::map<uint64_t, uint64_t>::const_iterator it = wc.begin( );
+             it != wc.end( ); ++it )
+        {
+            wearTotalWrites += it->second;
+            if( it->second > wearMaxWrites ) wearMaxWrites = it->second;
+
+            /* Log2 bucket so the histogram stays small for huge maps. */
+            uint64_t bucket = 0, v = it->second;
+            while( v > 1 ) { v >>= 1; bucket++; }
+            histo[bucket]++;
+
+            byCount.push_back( std::make_pair( it->second, it->first ) );
+        }
+
+        wearMeanWrites = ( wearLocations == 0 ) ? 0.0
+            : static_cast<double>(wearTotalWrites) / static_cast<double>(wearLocations);
+        wearHotSpotFactor = ( wearMeanWrites == 0.0 ) ? 0.0
+            : static_cast<double>(wearMaxWrites) / wearMeanWrites;
+
+        wearHisto = PyDictHistogram<uint64_t, uint64_t>( histo );
+
+        /* Top-N hottest locations as a python dict {key: writes}. */
+        const size_t topN = 16;
+        std::vector< std::pair<uint64_t, uint64_t> >::iterator partitionPoint =
+            byCount.begin( ) + std::min( topN, byCount.size( ) );
+        std::partial_sort( byCount.begin( ), partitionPoint, byCount.end( ),
+                   std::greater< std::pair<uint64_t, uint64_t> >( ) );
+        std::stringstream topSS;
+        topSS << "{";
+        for( size_t i = 0; i < byCount.size( ) && i < topN; i++ )
+        {
+            if( i ) topSS << ", ";
+            topSS << byCount[i].second << ": " << byCount[i].first;
+        }
+        topSS << "}";
+        wearTopLocations = topSS.str( );
+    }
 
     actWaitAverage = static_cast<double>(actWaitTotal) / static_cast<double>(actWaits);
 

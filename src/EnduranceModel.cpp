@@ -42,6 +42,7 @@ using namespace NVM;
 EnduranceModel::EnduranceModel( )
 {
     life.clear( );
+    writeCounts.clear( );
 
     granularity = 0;
 }
@@ -97,6 +98,9 @@ bool EnduranceModel::DecrementLife( uint64_t addr )
 {
     std::map<uint64_t, uint64_t>::iterator i = life.find( addr );
     bool rv = true;
+
+    /* Per-location wear counter (see GetWriteCounts). */
+    writeCounts[addr]++;
 
     if( i == life.end( ) )
     {

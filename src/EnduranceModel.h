@@ -65,13 +65,30 @@ class EnduranceModel : public NVMObject
     uint64_t GetWorstLife( );
     uint64_t GetAverageLife( );
 
+    /*
+     *  Raw per-location write counts, keyed the same way the concrete model
+     *  keys its life map (row for RowModel, row*COLS+col for WordModel, ...).
+     *  Unlike the life map this is a plain counter, so it is independent of
+     *  the (possibly random) EnduranceDist draw and of the first-write
+     *  off-by-one in DecrementLife.
+     */
+    const std::map<uint64_t, uint64_t>& GetWriteCounts( ) const { return writeCounts; }
+
     virtual void PrintStats( ) { }
+
+    /*
+     *  True only for models that compare old vs new data (Bit/Byte). When
+     *  false, SubArray::UpdateEndurance can skip the SimInterface data
+     *  shadow entirely, which is ~250 bytes per unique cacheline written.
+     */
+    virtual bool NeedsOldData( ) const { return true; }
 
     void Cycle( ncycle_t steps );
 
   protected:
     EnduranceDistribution *enduranceDist;
     std::map<uint64_t, uint64_t> life;
+    std::map<uint64_t, uint64_t> writeCounts;
     
     bool DecrementLife( uint64_t addr );
     bool IsDead( uint64_t addr );

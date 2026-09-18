@@ -46,6 +46,8 @@ class WordModel : public EnduranceModel
 
     void SetConfig( Config *conf, bool createChildren = true );
 
+    bool NeedsOldData( ) const { return false; }
+
     ncycles_t Read( NVMainRequest *request );
     ncycles_t Write( NVMainRequest *request, NVMDataBlock& oldData );
 };
