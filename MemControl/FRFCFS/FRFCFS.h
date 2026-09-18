@@ -70,6 +70,10 @@ class FRFCFS : public MemoryController
     uint64_t rb_miss;
     uint64_t starvation_precharges;
     uint64_t write_pauses;
+
+    /* MBMM T1.4: true when `Decoder StartGap` is configured, cached at
+     * SetConfig so IssueCommand does not do a string compare per request. */
+    bool useStartGap;
 };
 
 };

@@ -34,6 +34,7 @@
 #include "MemControl/FRFCFS/FRFCFS.h"
 #include "src/EventQueue.h"
 #include "include/NVMainRequest.h"
+#include "Decoders/StartGap/StartGap.h"
 #ifndef TRACE
 #ifdef GEM5
   #include "SimInterface/Gem5Interface/Gem5Interface.h"
@@ -77,6 +78,8 @@ FRFCFS::FRFCFS( )
 
     psInterval = 0;
 
+    useStartGap = false;
+
     InitQueues( 1 );
 
     memQueue = &(transactionQueues[0]);
@@ -99,6 +102,10 @@ void FRFCFS::SetConfig( Config *conf, bool createChildren )
     {
         queueSize = static_cast<unsigned int>( conf->GetValue( "QueueSize" ) );
     }
+
+    /* MBMM T1.4: cache whether the Start-Gap decoder is active so IssueCommand
+     * can call StartGap::NoteWrite() without a per-request string compare. */
+    useStartGap = ( conf->KeyExists( "Decoder" ) && conf->GetString( "Decoder" ) == "StartGap" );
 
     MemoryController::SetConfig( conf, createChildren );
 
@@ -161,6 +168,11 @@ bool FRFCFS::IssueCommand( NVMainRequest *req )
         mem_reads++;
     else
         mem_writes++;
+
+    /* MBMM T1.4: one Start-Gap write hook per WRITE request that enters the
+     * channel (write-precharge counts too -- it is still a single write). */
+    if( useStartGap && ( req->type == WRITE || req->type == WRITE_PRECHARGE ) )
+        StartGap::NoteWrite( );
 
     /*
      *  Return whether the request could be queued. Return false if the queue is full.
