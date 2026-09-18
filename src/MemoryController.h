@@ -132,6 +132,9 @@ class MemoryController : public NVMObject
     ncounter_t psInterval;
     ncycle_t lastCommandWake;
     ncounter_t wakeupCount;
+    double averageEndToEndLatency;
+    ncounter_t measuredEndToEndLatencies;
+    ncounter_t unstampedRequests;
     ncycle_t lastIssueCycle;
 
     std::list<NVMainRequest *> *transactionQueues;

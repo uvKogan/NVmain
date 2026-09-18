@@ -125,8 +125,10 @@ class NVMainRequest
         tag = 0; 
         reqInfo = NULL; 
         flags = 0;
-        arrivalCycle = 0; 
-        issueCycle = 0; 
+        arrivalCycle = 0;
+        traceCycle = 0;
+        traceStamped = false;
+        issueCycle = 0;
         queueCycle = 0;
         completionCycle = 0; 
         isPrefetch = false; 
@@ -158,6 +160,8 @@ class NVMainRequest
     ncounter_t burstCount;         //< Number of bursts (used for variable-size requests.
     NVMObject *owner;              //< Pointer to the object that created this request
 
+    ncycle_t traceCycle;           //< Timestamp from the trace record itself (GLOBAL/CPUFreq domain); meaningless unless traceStamped
+    bool traceStamped;             //< Whether traceCycle was actually set from a trace record (cycle 0 is a legitimate stamp)
     ncycle_t arrivalCycle;         //< When the request arrived at the memory controller
     ncycle_t queueCycle;           //< When the memory controller accepted (queued) the request
     ncycle_t issueCycle;           //< When the memory controller issued the request to the interconnect (dequeued)
@@ -202,6 +206,8 @@ const NVMainRequest& NVMainRequest::operator=( const NVMainRequest& m )
     programCounter = m.programCounter;
     owner = m.owner;
 
+    traceCycle = m.traceCycle;
+    traceStamped = m.traceStamped;
     arrivalCycle = m.arrivalCycle;
     queueCycle = m.queueCycle;
     issueCycle = m.issueCycle;

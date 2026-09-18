@@ -66,6 +66,10 @@ MemoryController::MemoryController( )
     wakeupCount = 0;
     lastIssueCycle = 0;
 
+    averageEndToEndLatency = 0.0;
+    measuredEndToEndLatencies = 0;
+    unstampedRequests = 0;
+
     starvationThreshold = 4;
     subArrayNum = 1;
     starvationCounter = NULL;
@@ -318,6 +322,48 @@ bool MemoryController::RequestComplete( NVMainRequest *request )
     }
     else
     {
+        /*
+         *  End-to-end latency: measured from the timestamp carried by the
+         *  front-end request (e.g. the trace record's own cycle) instead of
+         *  from the cycle the controller accepted the request. This therefore
+         *  *includes* any time the requestor spent stalled because the
+         *  transaction queue was full. The existing averageLatency /
+         *  averageQueueLatency / averageTotalLatency stats are untouched.
+         *
+         *  request->traceCycle is in the GLOBAL event-queue domain (CPUFreq);
+         *  the controller's event queue runs at CLK. Convert before
+         *  subtracting so the stat is reported in memory cycles, the same
+         *  unit as averageTotalLatency.
+         *
+         *  traceCycle == 0 is a legitimate stamp for the first record of a
+         *  trace (traces start at cycle 0), so "unstamped" is tracked with
+         *  its own traceStamped flag rather than overloading the sentinel.
+         */
+        if( request->type == READ || request->type == READ_PRECHARGE
+            || request->type == WRITE || request->type == WRITE_PRECHARGE )
+        {
+            if( !request->traceStamped )
+            {
+                unstampedRequests++;
+            }
+            else
+            {
+                double globalFreq = GetGlobalEventQueue( )->GetFrequency( );
+                double localFreq  = GetEventQueue( )->GetFrequency( );
+                double ratio = ( globalFreq > 0.0 ) ? ( localFreq / globalFreq ) : 1.0;
+
+                double arrival = static_cast<double>(request->traceCycle) * ratio;
+                double done    = static_cast<double>(GetEventQueue( )->GetCurrentCycle( ));
+                double e2e     = ( done > arrival ) ? ( done - arrival ) : 0.0;
+
+                averageEndToEndLatency =
+                    ( ( averageEndToEndLatency
+                        * static_cast<double>(measuredEndToEndLatencies) ) + e2e )
+                    / static_cast<double>(measuredEndToEndLatencies + 1);
+                measuredEndToEndLatencies += 1;
+            }
+        }
+
         return GetParent( )->RequestComplete( request );
     }
 
@@ -560,6 +606,9 @@ void MemoryController::RegisterStats( )
 {
     AddStat(simulation_cycles);
     AddStat(wakeupCount);
+    AddStat(averageEndToEndLatency);
+    AddStat(measuredEndToEndLatencies);
+    AddStat(unstampedRequests);
 }
 
 /* 

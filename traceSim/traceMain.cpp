@@ -229,6 +229,8 @@ int TraceMain::RunTrace( int argc, char *argv[] )
         request->type = tl->GetOperation( );
         request->bulkCmd = CMD_NOP;
         request->threadId = tl->GetThreadId( );
+        request->traceCycle = tl->GetCycle( );
+        request->traceStamped = true;
         if( !IgnoreData ) request->data = tl->GetData( );
         if( !IgnoreData ) request->oldData = tl->GetOldData( );
         request->status = MEM_REQUEST_INCOMPLETE;
